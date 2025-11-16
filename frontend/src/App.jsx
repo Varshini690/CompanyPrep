@@ -5,7 +5,9 @@ import Register from "./pages/auth/Register";
 import { AuthProvider } from "./context/AuthContext"; // if not wrapped in main
 import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard"; // create your dashboard
-
+import ResumeUpload from "./pages/ResumeUpload";
+import InterviewSetup from "./pages/InterviewSetup";
+import InterviewCall from "./components/InterviewCall";
 function App() {
   return (
     <BrowserRouter>
@@ -21,6 +23,9 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/resume" element={<ResumeUpload />} />
+        <Route path="/setup" element={<InterviewSetup/>} />
+        <Route path="/interview" element={<InterviewCall />} />
       </Routes>
     </BrowserRouter>
   );

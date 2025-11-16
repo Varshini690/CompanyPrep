@@ -1,0 +1,23 @@
+export const jobRoles = [
+  "Software Developer",
+  "Frontend Developer",
+  "Backend Developer",
+  "Full Stack Developer",
+  "Machine Learning Engineer",
+  "Data Scientist",
+  "Cloud Engineer",
+  "DevOps Engineer",
+  "Cybersecurity Engineer",
+  "iOS Developer",
+  "Android Developer",
+  "QA Engineer",
+  "AI Engineer",
+  "Business Analyst",
+  "Product Manager",
+  "Network Engineer",
+  "Blockchain Developer",
+  "UI/UX Designer",
+  "System Architect",
+  "Automation Tester",
+  "Embedded Engineer"
+];
