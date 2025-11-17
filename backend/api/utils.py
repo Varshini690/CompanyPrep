@@ -28,14 +28,14 @@ def extract_text_from_pdf(file_obj):
 
 
 # ----------------------------------------------------
-# AI-POWERED RESUME PARSER (REPLACE regex)
+# AI-POWERED RESUME PARSER (OPENAI ONLY + SAFE JSON)
 # ----------------------------------------------------
 def parse_resume_text_from_fileobj(file_obj):
     text = extract_text_from_pdf(file_obj)
 
     prompt = f"""
     You are an expert resume parser.
-    Extract the following information from the resume text below:
+    Extract the following information strictly in JSON format:
     - contact: name, phone, email, linkedin, github
     - summary
     - education: list with institution, duration, degree, location, scores
@@ -45,7 +45,12 @@ def parse_resume_text_from_fileobj(file_obj):
     - certifications
     - achievements
 
-    Return JSON only. No explanations.
+    RULES:
+    - Return only VALID JSON.
+    - No markdown.
+    - No text before or after the JSON.
+    - No comments.
+    
     Resume Text:
     {text}
     """
@@ -53,26 +58,73 @@ def parse_resume_text_from_fileobj(file_obj):
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=[
-            {"role": "system", "content": "Extract structured resume data. Return valid JSON only."},
+            {"role": "system", "content": "Return only valid JSON. No markdown, no explanation."},
             {"role": "user", "content": prompt}
         ]
     )
 
-    # FIX: Correct way to access content
-    json_output = response.choices[0].message.content
+    raw = response.choices[0].message.content.strip()
 
-    # Convert string → JSON
-    return json.loads(json_output)
+    # Remove ```json or ``` wrappers if present
+    if raw.startswith("```"):
+        raw = re.sub(r"```(json)?", "", raw)
+        raw = raw.replace("```", "")
+        raw = raw.strip()
+
+    print("\n\n🔍 RAW OPENAI OUTPUT:\n", raw, "\n")
+
+    # Try parsing JSON
+    try:
+        return json.loads(raw)
+
+    except json.JSONDecodeError:
+        # Try repairing using OpenAI again
+        repair_prompt = f"""
+        Fix this text and return VALID JSON only. 
+        Remove markdown, remove explanations, correct format.
+
+        Text:
+        {raw}
+        """
+
+        repair = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": "Fix invalid JSON and output only correct JSON."},
+                {"role": "user", "content": repair_prompt}
+            ]
+        )
+
+        fixed = repair.choices[0].message.content.strip()
+
+        if fixed.startswith("```"):
+            fixed = re.sub(r"```(json)?", "", fixed)
+            fixed = fixed.replace("```", "")
+            fixed = fixed.strip()
+
+        print("\n\n🔧 FIXED JSON OUTPUT:\n", fixed, "\n")
+
+        try:
+            return json.loads(fixed)
+        except:
+            return {
+                "error": "OpenAI returned invalid JSON twice.",
+                "raw_output": raw,
+                "fixed_output": fixed
+            }
 
 
 # ----------------------------------------------------
-# GPT QUESTION GENERATOR
+# GPT QUESTION GENERATOR (OPENAI ONLY)
 # ----------------------------------------------------
-def generate_questions_from_resume(resume_data, job_role, difficulty, interview_type):
+def generate_questions_from_resume(resume_data, job_role, difficulty, interview_type, page=1, page_size=10):
+    start = (page - 1) * page_size + 1
+    end = start + page_size - 1
+
     prompt = f"""
     You are an AI technical interviewer.
 
-    Generate EXACTLY 10 interview questions based on:
+    Based on the candidate's resume and interview settings:
 
     Resume:
     {resume_data}
@@ -81,33 +133,32 @@ def generate_questions_from_resume(resume_data, job_role, difficulty, interview_
     Difficulty: {difficulty}
     Interview Type: {interview_type}
 
+    Generate interview questions NUMBERED from {start} to {end}.
+
     STRICT RULES:
-    - Output ONLY the 10 questions.
-    - No introductions.
-    - No explanations.
-    - No extra text.
-    - Return each question on a new line starting with a number like:
-      1. <question>
-      2. <question>
+    - Output ONLY questions {start} to {end}
+    - No explanations
+    - No extra text
+    - Format:
+      {start}. <question>
+      {start+1}. <question>
+      ...
+      {end}. <question>
     """
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Generate interview questions only."},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=300,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=500,
         temperature=0.6
     )
 
     output = response.choices[0].message.content.strip()
-
-    # Split on numbered lines
+    
     questions = []
     for line in output.split("\n"):
-        # Match patterns like: "1. Question ..."
         if re.match(r"^\d+\.\s", line):
-            questions.append(line.split(". ", 1)[1].strip())
+            q = line.split(". ", 1)[1]
+            questions.append(q)
 
     return questions

@@ -1,20 +1,20 @@
-cat > .gitignore <<'EOF'
-# Node / Vite
-frontend/node_modules/
-frontend/dist/
-
 # Python
-backend/.venv/
-*.pyc
+venv/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+*.sqlite3
 
-# Environment
-*.env
-backend/.env
-frontend/.env
+# Node
+node_modules/
+dist/
+build/
 
-# Editor
+# macOS
+.DS_Store
+
+# IDE
 .vscode/
 .idea/
-.DS_Store
-EOF

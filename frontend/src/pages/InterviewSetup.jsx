@@ -4,6 +4,7 @@ import api from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
 import { jobRoles } from "../data/jobRoles";
 import { companies } from "../data/companies";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function InterviewSetup() {
   const { token } = useContext(AuthContext);
@@ -16,39 +17,75 @@ export default function InterviewSetup() {
     rounds: 1,
   });
 
-  const [questions, setQuestions] = useState([]);
+  const [questionsByPage, setQuestionsByPage] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   const roleOptions = jobRoles.map((r) => ({ value: r, label: r }));
   const companyOptions = companies.map((c) => ({ value: c, label: c }));
 
-  const handleSubmit = async () => {
+  // ⭐ FETCH page (ONLY when not already cached)
+  const fetchQuestions = async (pageNumber) => {
+    if (questionsByPage[pageNumber]) return; // already loaded
+
     try {
+      setLoading(true);
+
       const res = await api.post(
         "/interview/setup/",
-        form,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { ...form, page: pageNumber },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setQuestions(res.data.questions);
-      alert("Interview Setup Saved!");
+      setQuestionsByPage((prev) => ({
+        ...prev,
+        [pageNumber]: res.data.questions,
+      }));
     } catch (err) {
-      alert("Setup failed. Please upload resume first.");
+      console.log(err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // First batch
+  const handleSubmit = async () => {
+    setQuestionsByPage({});
+    setCurrentPage(1);
+    await fetchQuestions(1);
+  };
+
+  // Next page
+  const nextPage = async () => {
+    const next = currentPage + 1;
+    setCurrentPage(next);
+    await fetchQuestions(next);
+  };
+
+  // Previous page
+  const prevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const questions = questionsByPage[currentPage] || [];
+
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
       style={{
-        maxWidth: "900px",
-        margin: "0 auto",
-        padding: "20px",
-        lineHeight: "1.6",
-        textAlign: "center"
+        maxWidth: "650px",
+        margin: "40px auto",
+        padding: "30px",
+        background: "#fff",
+        borderRadius: "20px",
+        boxShadow: "0 12px 30px rgba(0,0,0,0.1)",
       }}
     >
-      <h1 style={{ marginBottom: "20px" }}>Interview Setup</h1>
+      <h1 style={{ textAlign: "center", marginBottom: "25px", color: "#0f8f48" }}>
+        Interview Setup
+      </h1>
 
       {/* Job Role */}
       <Select
@@ -58,7 +95,7 @@ export default function InterviewSetup() {
       />
 
       {/* Company */}
-      <div style={{ marginTop: "10px" }}>
+      <div style={{ marginTop: "12px" }}>
         <Select
           options={companyOptions}
           placeholder="Search company"
@@ -67,13 +104,11 @@ export default function InterviewSetup() {
       </div>
 
       {/* Difficulty */}
-      <div style={{ marginTop: "10px" }}>
+      <div style={{ marginTop: "12px" }}>
         <select
-          style={{ width: "100%", padding: "10px" }}
+          style={{ width: "100%", padding: 12, borderRadius: 10, border: "2px solid #0f8f48" }}
           value={form.difficulty}
-          onChange={(e) =>
-            setForm({ ...form, difficulty: e.target.value })
-          }
+          onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
         >
           <option value="">Select Difficulty</option>
           <option value="Easy">Easy</option>
@@ -83,13 +118,11 @@ export default function InterviewSetup() {
       </div>
 
       {/* Interview Type */}
-      <div style={{ marginTop: "10px" }}>
+      <div style={{ marginTop: "12px" }}>
         <select
-          style={{ width: "100%", padding: "10px" }}
+          style={{ width: "100%", padding: 12, borderRadius: 10, border: "2px solid #0f8f48" }}
           value={form.interview_type}
-          onChange={(e) =>
-            setForm({ ...form, interview_type: e.target.value })
-          }
+          onChange={(e) => setForm({ ...form, interview_type: e.target.value })}
         >
           <option value="">Select Type</option>
           <option value="Technical">Technical</option>
@@ -100,52 +133,103 @@ export default function InterviewSetup() {
       </div>
 
       {/* Rounds */}
-      <div style={{ marginTop: "10px" }}>
+      <div style={{ marginTop: "12px" }}>
         <input
           type="number"
-          min="1"
-          max="5"
+          min={1}
+          max={5}
           value={form.rounds}
-          placeholder="Rounds"
-          style={{ width: "100%", padding: "10px" }}
+          style={{ width: "100%", padding: 12, borderRadius: 10, border: "2px solid #0f8f48" }}
           onChange={(e) => setForm({ ...form, rounds: e.target.value })}
         />
       </div>
 
-      {/* Submit Button */}
+      {/* Submit */}
       <button
-        style={{
-          marginTop: "15px",
-          padding: "10px",
-          width: "100%",
-          background: "#4A4AFF",
-          color: "white",
-          border: "none",
-          cursor: "pointer",
-        }}
         onClick={handleSubmit}
+        disabled={loading}
+        style={{
+          marginTop: 18,
+          padding: 14,
+          width: "100%",
+          background: "#0f8f48",
+          color: "white",
+          borderRadius: 10,
+          cursor: "pointer",
+          fontSize: 17,
+          fontWeight: 600,
+        }}
       >
-        Save & Generate Questions
+        {loading ? "Generating..." : "Save & Generate Questions"}
       </button>
 
-      {/* Questions */}
-      {questions.length > 0 && (
-        <div
-          style={{
-            marginTop: "30px",
-            background: "#f8f9fa",
-            padding: "20px",
-            borderRadius: "8px",
-          }}
-        >
-          <h3>AI Generated Questions:</h3>
-          {questions.map((q, idx) => (
-            <p key={idx}>
-              <strong>{idx + 1}.</strong> {q}
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
+      {/* Questions Display */}
+      <AnimatePresence mode="wait">
+        {questions.length > 0 && (
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.4 }}
+            style={{
+              marginTop: 30,
+              background: "#e9ffee",
+              padding: 20,
+              borderRadius: 12,
+            }}
+          >
+            <h3 style={{ color: "#0f8f48" }}>Questions — Page {currentPage}</h3>
+
+            {questions.map((q, idx) => (
+              <p key={idx}>
+                <strong>{(currentPage - 1) * 10 + idx + 1}.</strong> {q}
+              </p>
+            ))}
+
+            {/* Pagination Buttons */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginTop: 20,
+              }}
+            >
+              <button
+                onClick={prevPage}
+                disabled={currentPage === 1}
+                style={{
+                  padding: 10,
+                  background: "#0f8f48",
+                  color: "white",
+                  borderRadius: 10,
+                  border: "none",
+                  width: "48%",
+                  cursor: "pointer",
+                }}
+              >
+                Prev
+              </button>
+
+              <button
+                onClick={nextPage}
+                disabled={loading}
+                style={{
+                  padding: 10,
+                  background: "#0f8f48",
+                  color: "white",
+                  borderRadius: 10,
+                  border: "none",
+                  width: "48%",
+                  cursor: "pointer",
+                }}
+              >
+                {loading ? "Loading..." : "Next"}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

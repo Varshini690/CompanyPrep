@@ -22,6 +22,7 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=400)
 
 
+
 class ResumeUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     permission_classes = [IsAuthenticated]

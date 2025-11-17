@@ -14,4 +14,6 @@ urlpatterns = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("resume/upload/", ResumeUploadView.as_view(), name="resume-upload"),
     path("interview/setup/", InterviewSetupView.as_view(), name="interview-setup"),
+    
+
 ]
